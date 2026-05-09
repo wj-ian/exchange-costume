@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>换装工坊 · 人物+服装涂抹修复版</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+        body {
+            font-family: 'Segoe UI', system-ui;
+            background: linear-gradient(145deg, #eef2f9 0%, #dee4ed 100%);
+            margin: 0;
+            padding: 20px;
+        }
+        .app {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.95);
+            border-radius: 48px;
+            padding: 24px;
+            box-shadow: 0 25px 40px rgba(0,0,0,0.2);
+        }
+        h1 { font-size: 1.8rem; margin: 0 0 6px; }
+        .sub { border-left: 5px solid #3b82f6; padding-left: 16px; margin-bottom: 24px; }
+        .flex-main { display: flex; flex-wrap: wrap; gap: 24px; }
+        .tool-panel { flex: 1.4; min-width: 340px; background: #ffffffcc; border-radius: 32px; padding: 20px; backdrop-filter: blur(4px); }
+        .canvas-panel { flex: 2; min-width: 420px; background: white; border-radius: 36px; padding: 20px; text-align: center; }
+        .card { background: white; border-radius: 28px; padding: 16px; margin-bottom: 20px; border: 1px solid #eef2fa; }
+        .card-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 12px; border-left: 4px solid #3b82f6; padding-left: 10px; display: flex; justify-content: space-between; }
+        .btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+        button, .file-label {
+            background: #f0f4fa; border: none; padding: 8px 14px; border-radius: 40px;
+            font-weight: 600; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+        }
+        button.primary { background: #3b82f6; color: white; }
+        button.success { background: #10b981; color: white; }
+        button.warning { background: #f59e0b; color: white; }
+        button.danger { background: #ef4444; color: white; }
+        .file-label { background: #eef2ff; }
+        input[type="file"] { display: none; }
+        .preview-sm { width: 70px; height: 70px; object-fit: contain; background: #f1f5f9; border-radius: 16px; border: 1px solid #cbd5e1; margin-top: 8px; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .slider-group { margin: 12px 0; }
+        .slider-group label { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600; }
+        input[type="range"] { width: 100%; }
+        canvas.edit-canvas { width: 100%; max-width: 260px; height: auto; border: 2px solid #ccc; background: repeating-conic-gradient(#f0f0f0 0% 25%, #ffffff 0% 50%) 50% / 20px 20px; cursor: crosshair; border-radius: 16px; }
+        footer { text-align: center; margin-top: 28px; font-size: 0.7rem; color: #6c7a8a; }
+        .tool-active { background: #3b82f6 !important; color: white !important; }
+        .row-2cols { display: flex; gap: 16px; flex-wrap: wrap; }
+        .result-tools { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+        .status-badge { font-size: 0.7rem; background: #eef2ff; padding: 2px 8px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <h1>✨ 双向抠图换装 · 人物+服装涂抹修复版</h1>
+    <div class="sub">✂️ 分别对人物和服装进行涂抹（保留/去除），应用后合成，支持复制/下载</div>
+    <div class="flex-main">
+        <div class="tool-panel">
+            <!-- 人物抠图卡片 -->
+            <div class="card">
+                <div class="card-title">👤 人物抠图 <span id="personStatus" class="status-badge">⚪ 未上传</span></div>
+                <div class="btn-group">
+                    <label class="file-label">📁 上传人物照片 <input type="file" id="personFile" accept="image/*"></label>
+                    <button id="resetPersonMaskBtn" class="danger">重置蒙版</button>
+                </div>
+                <div style="text-align: center;">
+                    <canvas id="personEditCanvas" class="edit-canvas" width="260" height="260"></canvas>
+                </div>
+                <div class="btn-group">
+                    <button id="personKeepBtn" class="success">✏️ 涂抹保留</button>
+                    <button id="personEraseBtn" class="warning">🧽 涂抹去除</button>
+                    <button id="clearPersonMaskBtn">🗑️ 清空蒙版</button>
+                </div>
+                <div class="slider-group">
+                    <label>🎨 笔刷大小 <span id="personBrushSizeVal">20</span> px</label>
+                    <input type="range" id="personBrushSize" min="5" max="50" value="20">
+                </div>
+                <div class="btn-group">
+                    <button id="applyPersonMaskBtn" class="primary">✅ 应用人物抠图</button>
+                    <button id="togglePersonOverlayBtn">🔴 显示去除区域</button>
+                </div>
+            </div>
+
+            <!-- 服装抠图卡片 -->
+            <div class="card">
+                <div class="card-title">👗 服装抠图 <span id="clothStatus" class="status-badge">⚪ 未上传</span></div>
+                <div class="btn-group">
+                    <label class="file-label">🖼️ 上传服装照片 <input type="file" id="clothFile" accept="image/*"></label>
+                    <button id="resetClothMaskBtn" class="danger">重置蒙版</button>
+                </div>
+                <div style="text-align: center;">
+                    <canvas id="clothEditCanvas" class="edit-canvas" width="260" height="260"></canvas>
+                </div>
+                <div class="btn-group">
+                    <button id="clothKeepBtn" class="success">✏️ 涂抹保留</button>
+                    <button id="clothEraseBtn" class="warning">🧽 涂抹去除</button>
+                    <button id="clearClothMaskBtn">🗑️ 清空蒙版</button>
+                </div>
+                <div class="slider-group">
+                    <label>🎨 笔刷大小 <span id="clothBrushSizeVal">20</span> px</label>
+                    <input type="range" id="clothBrushSize" min="5" max="50" value="20">
+                </div>
+                <div class="btn-group">
+                    <button id="applyClothMaskBtn" class="primary">✅ 应用服装抠图</button>
+                    <button id="toggleClothOverlayBtn">🔴 显示去除区域</button>
+                </div>
+            </div>
+
+            <!-- 换装合成调节 -->
+            <div class="card">
+                <div class="card-title">🎛️ 换装合成</div>
+                <div class="slider-group"><label>↔️ X <span id="posXVal">250</span></label><input type="range" id="posX" min="0" max="600" value="250"></div>
+                <div class="slider-group"><label>↕️ Y <span id="posYVal">280</span></label><input type="range" id="posY" min="0" max="600" value="280"></div>
+                <div class="slider-group"><label>📏 宽 <span id="widthVal">160</span></label><input type="range" id="clothWidth" min="40" max="450" value="160"></div>
+                <div class="slider-group"><label>🔄 旋转 <span id="rotateVal">0</span></label><input type="range" id="rotate" min="-30" max="30" value="0"></div>
+                <div class="slider-group"><label>🎭 服装透明度 <span id="alphaVal">100</span>%</label><input type="range" id="clothAlpha" min="0" max="100" value="100"></div>
+                <div class="btn-group">
+                    <button id="resetPosBtn">⟳ 重置位置</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-panel">
+            <canvas id="resultCanvas" width="600" height="600" style="width:100%; max-width:600px; background:#eef2f8; border-radius:28px;"></canvas>
+            <div class="result-tools">
+                <button id="copyResultBtn" class="success">📋 复制图片</button>
+                <button id="downloadResultBtn" class="primary">💾 下载换装照</button>
+            </div>
+            <div style="margin-top:12px; font-size:0.75rem;">✨ 1.上传照片 → 2.用画笔涂抹保留区域 → 3.点击“应用抠图” → 4.调整服装位置</div>
+        </div>
+    </div>
+    <footer>💡 提示：涂抹保留（白色）表示要保留的区域，涂抹去除（红色遮罩）表示将要透明化。应用后方可换装。</footer>
+</div>
+
+<script>
+    (function(){
+        // ---------- 通用涂抹编辑器（完全重写，确保事件可靠）----------
+        class MaskEditor {
+            constructor(canvasElement) {
+                this.canvas = canvasElement;
+                this.ctx = this.canvas.getContext('2d');
+                this.width = 260;
+                this.height = 260;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                this.originalImg = null;
+                this.maskData = null;     // Uint8Array
+                this.currentTool = 'keep';   // 'keep' or 'erase'
+                this.brushSize = 20;
+                this.showOverlay = false;
+                this.isDrawing = false;
+                this.lastX = 0; this.lastY = 0;
+                this.initEvents();
+            }
+
+            initEvents() {
+                const getCoords = (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleX = this.canvas.width / rect.width;
+                    const scaleY = this.canvas.height / rect.height;
+                    let clientX, clientY;
+                    if (e.touches) {
+                        clientX = e.touches[0].clientX;
+                        clientY = e.touches[0].clientY;
+                    } else {
+                        clientX = e.clientX;
+                        clientY = e.clientY;
+                    }
+                    let x = (clientX - rect.left) * scaleX;
+                    let y = (clientY - rect.top) * scaleY;
+                    x = Math.min(Math.max(0, x), this.canvas.width);
+                    y = Math.min(Math.max(0, y), this.canvas.height);
+                    return { x, y };
+                };
+
+                const drawPoint = (x, y, mode) => {
+                    if (!this.maskData) return;
+                    const r = this.brushSize / 2;
+                    const value = (mode === 'keep') ? 255 : 0;
+                    const startX = Math.max(0, Math.floor(x - r));
+                    const endX = Math.min(this.width, Math.ceil(x + r));
+                    const startY = Math.max(0, Math.floor(y - r));
+                    const endY = Math.min(this.height, Math.ceil(y + r));
+                    for (let i = startY; i < endY; i++) {
+                        for (let j = startX; j < endX; j++) {
+                            const dx = j - x, dy = i - y;
+                            if (dx * dx + dy * dy <= r * r) {
+                                this.maskData[i * this.width + j] = value;
+                            }
+                        }
+                    }
+                };
+
+                const drawLine = (x0, y0, x1, y1, mode) => {
+                    const dist = Math.hypot(x1 - x0, y1 - y0);
+                    if (dist < 0.5) {
+                        drawPoint(x1, y1, mode);
+                        return;
+                    }
+                    const steps = Math.max(2, Math.ceil(dist / (this.brushSize / 2)));
+                    for (let step = 0; step <= steps; step++) {
+                        const t = step / steps;
+                        const x = x0 + (x1 - x0) * t;
+                        const y = y0 + (y1 - y0) * t;
+                        drawPoint(x, y, mode);
+                    }
+                };
+
+                const startDraw = (e) => {
+                    e.preventDefault();
+                    const { x, y } = getCoords(e);
+                    this.isDrawing = true;
+                    this.lastX = x;
+                    this.lastY = y;
+                    drawPoint(x, y, this.currentTool);
+                    this.render();
+                };
+
+                const drawMove = (e) => {
+                    if (!this.isDrawing) return;
+                    e.preventDefault();
+                    const { x, y } = getCoords(e);
+                    drawLine(this.lastX, this.lastY, x, y, this.currentTool);
+                    this.lastX = x;
+                    this.lastY = y;
+                    this.render();
+                };
+
+                const endDraw = () => {
+                    this.isDrawing = false;
+                };
+
+                this.canvas.addEventListener('mousedown', startDraw);
+                window.addEventListener('mousemove', drawMove);
+                window.addEventListener('mouseup', endDraw);
+                this.canvas.addEventListener('touchstart', startDraw);
+                window.addEventListener('touchmove', drawMove);
+                window.addEventListener('touchend', endDraw);
+            }
+
+            setImage(img) {
+                this.originalImg = img;
+                // 自适应尺寸，保持比例，最大260
+                let w = img.width, h = img.height;
+                const maxSize = 260;
+                if (w > maxSize || h > maxSize) {
+                    const ratio = Math.min(maxSize / w, maxSize / h);
+                    w = Math.floor(w * ratio);
+                    h = Math.floor(h * ratio);
+                }
+                this.width = w;
+                this.height = h;
+                this.canvas.width = w;
+                this.canvas.height = h;
+                this.ctx = this.canvas.getContext('2d');
+                // 初始化蒙版全0
+                this.maskData = new Uint8Array(w * h);
+                for (let i = 0; i < this.maskData.length; i++) this.maskData[i] = 0;
+                this.render();
+            }
+
+            render() {
+                if (!this.originalImg) {
+                    this.ctx.clearRect(0, 0, this.width, this.height);
+                    this.ctx.fillStyle = '#ccc';
+                    this.ctx.fillRect(0, 0, this.width, this.height);
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.font = '12px system-ui';
+                    this.ctx.fillText('等待上传', this.width/2-30, this.height/2);
+                    return;
+                }
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                this.ctx.drawImage(this.originalImg, 0, 0, this.width, this.height);
+                if (this.showOverlay && this.maskData) {
+                    const imgData = this.ctx.getImageData(0, 0, this.width, this.height);
+                    const data = imgData.data;
+                    for (let i = 0; i < this.maskData.length; i++) {
+                        if (this.maskData[i] === 0) {
+                            data[i*4] = 255;
+                            data[i*4+1] = 80;
+                            data[i*4+2] = 80;
+                            data[i*4+3] = 180;
+                        }
+                    }
+                    this.ctx.putImageData(imgData, 0, 0);
+                }
+            }
+
+            async generateTransparent() {
+                if (!this.originalImg) return null;
+                const offCanvas = document.createElement('canvas');
+                const offCtx = offCanvas.getContext('2d');
+                const ow = this.originalImg.width, oh = this.originalImg.height;
+                offCanvas.width = ow;
+                offCanvas.height = oh;
+                offCtx.drawImage(this.originalImg, 0, 0);
+                const imgData = offCtx.getImageData(0, 0, ow, oh);
+                const pixels = imgData.data;
+                const scaleX = ow / this.width;
+                const scaleY = oh / this.height;
+                for (let y = 0; y < oh; y++) {
+                    let my = Math.floor(y / scaleY);
+                    if (my >= this.height) my = this.height - 1;
+                    for (let x = 0; x < ow; x++) {
+                        let mx = Math.floor(x / scaleX);
+                        if (mx >= this.width) mx = this.width - 1;
+                        const maskVal = this.maskData[my * this.width + mx];
+                        const alpha = (maskVal === 255) ? 255 : 0;
+                        pixels[(y * ow + x) * 4 + 3] = alpha;
+                    }
+                }
+                offCtx.putImageData(imgData, 0, 0);
+                const img = new Image();
+                return new Promise(resolve => {
+                    img.onload = () => resolve(img);
+                    img.src = offCanvas.toDataURL('image/png');
+                });
+            }
+
+            setTool(tool) { this.currentTool = tool; }
+            setBrushSize(size) { this.brushSize = size; }
+            toggleOverlay() { this.showOverlay = !this.showOverlay; this.render(); }
+            resetMask() { if (this.maskData) { for (let i=0; i<this.maskData.length; i++) this.maskData[i]=0; this.render(); } }
+            clearMask() { this.resetMask(); }
+        }
+
+        // 获取canvas元素
+        const personCanvas = document.getElementById('personEditCanvas');
+        const clothCanvas = document.getElementById('clothEditCanvas');
+        const personEditor = new MaskEditor(personCanvas);
+        const clothEditor = new MaskEditor(clothCanvas);
+
+        // 存储最终透明图
+        let finalPerson = null;
+        let finalCloth = null;
+        let personRaw = null;
+        let clothRaw = null;
+
+        // DOM 元素
+        const personFile = document.getElementById('personFile');
+        const clothFile = document.getElementById('clothFile');
+        const personStatus = document.getElementById('personStatus');
+        const clothStatus = document.getElementById('clothStatus');
+        const resultCanvas = document.getElementById('resultCanvas');
+        const ctxRes = resultCanvas.getContext('2d');
+        resultCanvas.width = 600; resultCanvas.height = 600;
+
+        // 人物上传
+        personFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    personRaw = img;
+                    personEditor.setImage(img);
+                    personStatus.innerHTML = '✅ 已加载，请涂抹保留区域';
+                    finalPerson = null;
+                    updateResult();
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 服装上传
+        clothFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    clothRaw = img;
+                    clothEditor.setImage(img);
+                    clothStatus.innerHTML = '✅ 已加载，请涂抹保留区域';
+                    finalCloth = null;
+                    updateResult();
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 应用人物抠图
+        document.getElementById('applyPersonMaskBtn').addEventListener('click', async () => {
+            if (!personEditor.originalImg) { alert('请先上传人物照片'); return; }
+            const transparent = await personEditor.generateTransparent();
+            finalPerson = transparent;
+            personStatus.innerHTML = '✅ 人物抠图已应用';
+            updateResult();
+        });
+        // 应用服装抠图
+        document.getElementById('applyClothMaskBtn').addEventListener('click', async () => {
+            if (!clothEditor.originalImg) { alert('请先上传服装照片'); return; }
+            const transparent = await clothEditor.generateTransparent();
+            finalCloth = transparent;
+            clothStatus.innerHTML = '✅ 服装抠图已应用';
+            updateResult();
+        });
+
+        // 人物UI绑定
+        document.getElementById('personKeepBtn').addEventListener('click', () => { personEditor.setTool('keep'); setActive('personKeepBtn', 'personEraseBtn'); });
+        document.getElementById('personEraseBtn').addEventListener('click', () => { personEditor.setTool('erase'); setActive('personEraseBtn', 'personKeepBtn'); });
+        document.getElementById('clearPersonMaskBtn').addEventListener('click', () => { personEditor.clearMask(); });
+        document.getElementById('resetPersonMaskBtn').addEventListener('click', () => { personEditor.resetMask(); });
+        document.getElementById('togglePersonOverlayBtn').addEventListener('click', () => { personEditor.toggleOverlay(); });
+        document.getElementById('personBrushSize').addEventListener('input', (e) => { personEditor.setBrushSize(parseInt(e.target.value)); document.getElementById('personBrushSizeVal').innerText = e.target.value; });
+        
+        // 服装UI绑定
+        document.getElementById('clothKeepBtn').addEventListener('click', () => { clothEditor.setTool('keep'); setActive('clothKeepBtn', 'clothEraseBtn'); });
+        document.getElementById('clothEraseBtn').addEventListener('click', () => { clothEditor.setTool('erase'); setActive('clothEraseBtn', 'clothKeepBtn'); });
+        document.getElementById('clearClothMaskBtn').addEventListener('click', () => { clothEditor.clearMask(); });
+        document.getElementById('resetClothMaskBtn').addEventListener('click', () => { clothEditor.resetMask(); });
+        document.getElementById('toggleClothOverlayBtn').addEventListener('click', () => { clothEditor.toggleOverlay(); });
+        document.getElementById('clothBrushSize').addEventListener('input', (e) => { clothEditor.setBrushSize(parseInt(e.target.value)); document.getElementById('clothBrushSizeVal').innerText = e.target.value; });
+
+        function setActive(activeId, inactiveId) {
+            document.getElementById(activeId).classList.add('tool-active');
+            document.getElementById(inactiveId).classList.remove('tool-active');
+        }
+        // 默认激活保留
+        document.getElementById('personKeepBtn').classList.add('tool-active');
+        document.getElementById('clothKeepBtn').classList.add('tool-active');
+
+        // 换装参数
+        let clothParams = { x: 250, y: 280, width: 160, rotation: 0 };
+
+        function drawPersonOnCanvas(ctx, img, w, h) {
+            if (!img) return;
+            const iw = img.width, ih = img.height;
+            const scale = Math.min(w/iw, h/ih);
+            const dw = iw * scale, dh = ih * scale;
+            const dx = (w-dw)/2, dy = (h-dh)/2;
+            ctx.drawImage(img, dx, dy, dw, dh);
+        }
+
+        function updateResult() {
+            ctxRes.clearRect(0, 0, 600, 600);
+            ctxRes.fillStyle = '#eef2f8';
+            ctxRes.fillRect(0, 0, 600, 600);
+            // 人物绘制（优先用抠图后的）
+            const personToDraw = (finalPerson && finalPerson.complete) ? finalPerson : (personRaw || null);
+            if (personToDraw) {
+                drawPersonOnCanvas(ctxRes, personToDraw, 600, 600);
+            } else {
+                ctxRes.fillStyle = '#5a6874';
+                ctxRes.font = 'bold 16px system-ui';
+                ctxRes.fillText('请上传并应用人物抠图', 190, 300);
+            }
+            // 服装绘制
+            if (finalCloth && finalCloth.complete && finalCloth.naturalWidth) {
+                const aspect = finalCloth.height / finalCloth.width;
+                const drawH = clothParams.width * aspect;
+                const alpha = document.getElementById('clothAlpha').value / 100;
+                ctxRes.save();
+                ctxRes.globalAlpha = alpha;
+                ctxRes.shadowBlur = 3;
+                ctxRes.shadowColor = 'rgba(0,0,0,0.2)';
+                ctxRes.translate(clothParams.x + clothParams.width/2, clothParams.y + drawH/2);
+                ctxRes.rotate(clothParams.rotation * Math.PI/180);
+                ctxRes.drawImage(finalCloth, -clothParams.width/2, -drawH/2, clothParams.width, drawH);
+                ctxRes.restore();
+                // 辅助虚线框
+                ctxRes.save();
+                ctxRes.strokeStyle = '#f97316';
+                ctxRes.setLineDash([5,6]);
+                ctxRes.strokeRect(clothParams.x, clothParams.y, clothParams.width, drawH);
+                ctxRes.restore();
+            } else {
+                if (personToDraw) {
+                    ctxRes.fillStyle = '#6c7a8a';
+                    ctxRes.font = '14px system-ui';
+                    ctxRes.fillText('请上传并应用服装抠图', 220, 560);
+                }
+            }
+        }
+
+        // 滑块绑定
+        const posX = document.getElementById('posX');
+        const posY = document.getElementById('posY');
+        const clothWidth = document.getElementById('clothWidth');
+        const rotate = document.getElementById('rotate');
+        posX.addEventListener('input', () => { clothParams.x = parseInt(posX.value); document.getElementById('posXVal').innerText = clothParams.x; updateResult(); });
+        posY.addEventListener('input', () => { clothParams.y = parseInt(posY.value); document.getElementById('posYVal').innerText = clothParams.y; updateResult(); });
+        clothWidth.addEventListener('input', () => { clothParams.width = parseInt(clothWidth.value); document.getElementById('widthVal').innerText = clothParams.width; updateResult(); });
+        rotate.addEventListener('input', () => { clothParams.rotation = parseInt(rotate.value); document.getElementById('rotateVal').innerText = clothParams.rotation; updateResult(); });
+        document.getElementById('resetPosBtn').addEventListener('click', () => {
+            clothParams = { x: 250, y: 280, width: 160, rotation: 0 };
+            posX.value = 250; posY.value = 280; clothWidth.value = 160; rotate.value = 0;
+            document.getElementById('posXVal').innerText = 250;
+            document.getElementById('posYVal').innerText = 280;
+            document.getElementById('widthVal').innerText = 160;
+            document.getElementById('rotateVal').innerText = 0;
+            updateResult();
+        });
+        document.getElementById('clothAlpha').addEventListener('input', (e) => {
+            document.getElementById('alphaVal').innerText = e.target.value;
+            updateResult();
+        });
+
+        // 复制图片
+        async function copyResult() {
+            if (!finalPerson && !personRaw) { alert('请先上传并应用人物抠图'); return; }
+            updateResult();
+            try {
+                const blob = await new Promise(resolve => resultCanvas.toBlob(resolve, 'image/png'));
+                await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                alert('✅ 图片已复制到剪贴板！');
+            } catch (err) {
+                alert('复制失败，可手动截图或使用下载按钮');
+            }
+        }
+        document.getElementById('copyResultBtn').addEventListener('click', copyResult);
+        // 下载
+        document.getElementById('downloadResultBtn').addEventListener('click', () => {
+            if (!finalPerson && !personRaw) { alert('请先上传人物照片'); return; }
+            const link = document.createElement('a');
+            link.download = 'fashion_result.png';
+            link.href = resultCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // 初始渲染
+        updateResult();
+    })();
+</script>
+</body>
+</html>
